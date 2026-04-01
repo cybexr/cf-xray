@@ -15,13 +15,14 @@ ARG XRAY_VERSION
 ARG CLOUDFLARED_VERSION
 
 # Download xray-core with extended timeout for slow connections
-RUN wget --timeout=0 -q -O /tmp/xray.zip \
+RUN apk add --no-cache ca-certificates && \
+    wget -O /tmp/xray.zip \
         "https://github.com/XTLS/Xray-core/releases/download/${XRAY_VERSION}/Xray-linux-64.zip" && \
     unzip /tmp/xray.zip -d /tmp/xray && \
     rm /tmp/xray.zip
 
 # Download cloudflared with extended timeout for slow connections
-RUN wget --timeout=0 -q -O /tmp/cloudflared \
+RUN wget -O /tmp/cloudflared \
         "https://github.com/cloudflare/cloudflared/releases/download/${CLOUDFLARED_VERSION}/cloudflared-linux-amd64" && \
     chmod +x /tmp/cloudflared
 
