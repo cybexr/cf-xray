@@ -15,15 +15,15 @@ ARG XRAY_VERSION
 ARG CLOUDFLARED_VERSION
 
 # Download xray-core with extended timeout for slow connections
-RUN curl -fL --retry 3 --retry-all-errors --retry-delay 10 \
-        --connect-timeout 60 --max-time 600 \
+RUN set -x && \
+    curl -fL --retry 5 --retry-delay 10 --connect-timeout 60 --max-time 600 \
         -o /tmp/xray.zip "https://github.com/XTLS/Xray-core/releases/download/${XRAY_VERSION}/Xray-linux-64.zip" && \
     unzip /tmp/xray.zip -d /tmp/xray && \
     rm /tmp/xray.zip
 
 # Download cloudflared with extended timeout for slow connections
-RUN curl -fL --retry 3 --retry-all-errors --retry-delay 10 \
-        --connect-timeout 60 --max-time 300 \
+RUN set -x && \
+    curl -fL --retry 5 --retry-delay 10 --connect-timeout 60 --max-time 300 \
         -o /tmp/cloudflared "https://github.com/cloudflare/cloudflared/releases/download/${CLOUDFLARED_VERSION}/cloudflared-linux-amd64" && \
     chmod +x /tmp/cloudflared
 
