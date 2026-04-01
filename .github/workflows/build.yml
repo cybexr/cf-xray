@@ -52,34 +52,6 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Download binaries before Docker build
-        run: |
-          set -x
-          mkdir -p binaries
-
-          # Install gh CLI if not available
-          if ! command -v gh &> /dev/null; then
-            curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg
-            chmod go+r /usr/share/keyrings/githubcli-archive-keyring.gpg
-            echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | tee /etc/apt/sources.list.d/github-cli.list
-            apt update
-            apt install -y gh
-          fi
-
-          # Download Xray-core using gh release download
-          echo "Downloading Xray-core ${{ steps.versions.outputs.xray_version }}..."
-          gh release download "${{ steps.versions.outputs.xray_version }}" --repo XTLS/Xray-core --pattern "Xray-linux-64.zip" --dir binaries/
-          unzip -d binaries binaries/Xray-linux-64.zip
-          rm binaries/Xray-linux-64.zip
-
-          # Download cloudflared using gh release download
-          echo "Downloading cloudflared ${{ steps.versions.outputs.cloudflared_version }}..."
-          gh release download "${{ steps.versions.outputs.cloudflared_version }}" --repo cloudflare/cloudflared --pattern "cloudflared-linux-amd64" --dir binaries/
-          mv binaries/cloudflared-linux-amd64 binaries/cloudflared
-          chmod +x binaries/cloudflared
-
-          ls -la binaries/
-
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@v3
         with:
@@ -120,7 +92,6 @@ jobs:
           build-args: |
             XRAY_VERSION=${{ steps.versions.outputs.xray_version }}
             CLOUDFLARED_VERSION=${{ steps.versions.outputs.cloudflared_version }}
-            USE_LOCAL_BINARIES=true
 
       - name: Image digest
         run: echo "Image pushed with digest ${{ steps.build.outputs.digest }}"
