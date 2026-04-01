@@ -57,20 +57,25 @@ jobs:
           set -x
           mkdir -p binaries
 
-          # Get Xray download URL from GitHub API
-          echo "Getting Xray-core download URL for ${{ steps.versions.outputs.xray_version }}..."
-          XRAY_URL=$(curl -s "https://api.github.com/repos/XTLS/Xray-core/releases/tags/${{ steps.versions.outputs.xray_version }}" | \
-            grep "browser_download_url.*Xray-linux-64.zip" | head -1 | cut -d '"' -f 4)
-          echo "Xray URL: $XRAY_URL"
-          curl -vL -o binaries/xray.zip "$XRAY_URL"
-          unzip -d binaries binaries/xray.zip
+          # Install gh CLI if not available
+          if ! command -v gh &> /dev/null; then
+            curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg
+            chmod go+r /usr/share/keyrings/githubcli-archive-keyring.gpg
+            echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | tee /etc/apt/sources.list.d/github-cli.list
+            apt update
+            apt install -y gh
+          fi
 
-          # Get cloudflared download URL from GitHub API
-          echo "Getting cloudflared download URL for ${{ steps.versions.outputs.cloudflared_version }}..."
-          CLOUDFLARED_URL=$(curl -s "https://api.github.com/repos/cloudflare/cloudflared/releases/tags/${{ steps.versions.outputs.cloudflared_version }}" | \
-            grep "browser_download_url.*cloudflared-linux-amd64\"" | head -1 | cut -d '"' -f 4)
-          echo "Cloudflared URL: $CLOUDFLARED_URL"
-          curl -vL -o binaries/cloudflared "$CLOUDFLARED_URL"
+          # Download Xray-core using gh release download
+          echo "Downloading Xray-core ${{ steps.versions.outputs.xray_version }}..."
+          gh release download "${{ steps.versions.outputs.xray_version }}" --repo XTLS/Xray-core --pattern "Xray-linux-64.zip" --dir binaries/
+          unzip -d binaries binaries/Xray-linux-64.zip
+          rm binaries/Xray-linux-64.zip
+
+          # Download cloudflared using gh release download
+          echo "Downloading cloudflared ${{ steps.versions.outputs.cloudflared_version }}..."
+          gh release download "${{ steps.versions.outputs.cloudflared_version }}" --repo cloudflare/cloudflared --pattern "cloudflared-linux-amd64" --dir binaries/
+          mv binaries/cloudflared-linux-amd64 binaries/cloudflared
           chmod +x binaries/cloudflared
 
           ls -la binaries/
