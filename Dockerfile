@@ -8,23 +8,19 @@ ARG CLOUDFLARED_VERSION=2024.4.0
 FROM alpine:latest AS builder
 
 # Install build dependencies
-RUN apk add --no-cache curl tar unzip ca-certificates
+RUN apk add --no-cache curl tar unzip
 
 # Set version arguments
 ARG XRAY_VERSION
 ARG CLOUDFLARED_VERSION
 
-# Download xray-core using GitHub API (more reliable)
-RUN curl -fL "https://api.github.com/repos/XTLS/Xray-core/releases/tags/${XRAY_VERSION}" | \
-    grep "browser_download_url.*Xray-linux-64.zip" | cut -d '"' -f 4 | \
-    xargs curl -fL -o /tmp/xray.zip && \
+# Download xray-core
+RUN curl -L -o /tmp/xray.zip "https://github.com/XTLS/Xray-core/releases/download/${XRAY_VERSION}/Xray-linux-64.zip" && \
     unzip /tmp/xray.zip -d /tmp/xray && \
     rm /tmp/xray.zip
 
-# Download cloudflared using GitHub API
-RUN curl -fL "https://api.github.com/repos/cloudflare/cloudflared/releases/tags/${CLOUDFLARED_VERSION}" | \
-    grep "browser_download_url.*cloudflared-linux-amd64\"" | cut -d '"' -f 4 | \
-    xargs curl -fL -o /tmp/cloudflared && \
+# Download cloudflared
+RUN curl -L -o /tmp/cloudflared "https://github.com/cloudflare/cloudflared/releases/download/${CLOUDFLARED_VERSION}/cloudflared-linux-amd64" && \
     chmod +x /tmp/cloudflared
 
 # Stage 2: Create minimal runtime image
