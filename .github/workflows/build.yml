@@ -70,7 +70,7 @@ jobs:
             type=semver,pattern={{version}},prefix=v
             type=semver,pattern={{major}}.{{minor}},prefix=v
             type=ref,event=branch
-            type=sha,prefix={{branch}}-
+            type=sha,prefix=
 
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
