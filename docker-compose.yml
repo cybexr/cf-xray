@@ -1,0 +1,43 @@
+version: '3.8'
+
+services:
+  cf-xray:
+    image: ghcr.io/yourusername/cf-xray:latest
+    container_name: cf-xray
+    restart: unless-stopped
+    environment:
+      # Required variables
+      TUNNEL_TOKEN: "your_cloudflare_tunnel_token"
+      VLESS_UUID: "your_vless_uuid"
+      DOMAIN: "your.domain.com"
+
+      # Optional variables
+      PORT: "10000"
+      LOG_LEVEL: "warning"
+      ENABLE_HEALTH_CHECK: "true"
+      VLESS_XHTTP_PATH: "/your-secret-path"
+
+    ports:
+      - "10000:10000"   # Xray inbound port
+      - "8080:8080"     # Health check port
+
+    volumes:
+      # Optional: Mount custom config
+      # - ./config/custom.json:/etc/xray/config.json:ro
+
+    healthcheck:
+      test: ["CMD", "pgrep", "xray"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 5s
+
+    # Resource limits (adjust based on your needs)
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 512M
+        reservations:
+          cpus: '0.5'
+          memory: 128M

@@ -1,0 +1,96 @@
+name: Build and Push Docker Image
+
+# Triggers:
+# - Tag push (v*)
+# - Changes to upstream-ver.ini (version updates)
+# - Changes to this workflow, Dockerfile, entrypoint.sh, or config
+# - Manual workflow_dispatch
+on:
+  push:
+    tags:
+      - 'v*'
+    paths:
+      - 'upstream-ver.ini'
+      - '.github/workflows/build.yml'
+      - 'Dockerfile'
+      - 'entrypoint.sh'
+      - 'config/**'
+  workflow_dispatch:
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Extract versions from upstream-ver.ini
+        id: versions
+        run: |
+          # Parse upstream-ver.ini to extract version numbers
+          XRAY_VERSION=$(grep -E '^version=' upstream-ver.ini | grep -A1 '\[xray-core\]' | tail -1 | cut -d'=' -f2)
+          CLOUDFLARED_VERSION=$(grep -E '^version=' upstream-ver.ini | grep -A1 '\[cloudflared\]' | tail -1 | cut -d'=' -f2)
+
+          # Add 'v' prefix to xray version if not present
+          if [[ ! "$XRAY_VERSION" =~ ^v ]]; then
+            XRAY_VERSION="v${XRAY_VERSION}"
+          fi
+
+          echo "xray_version=${XRAY_VERSION}" >> $GITHUB_OUTPUT
+          echo "cloudflared_version=${CLOUDFLARED_VERSION}" >> $GITHUB_OUTPUT
+          echo "Extracted versions: Xray=${XRAY_VERSION}, cloudflared=${CLOUDFLARED_VERSION}"
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata for Docker
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=raw,value=latest
+            type=raw,value=${{ steps.versions.outputs.xray_version }}
+            type=semver,pattern={{version}},prefix=v
+            type=semver,pattern={{major}}.{{minor}},prefix=v
+            type=ref,event=branch
+            type=sha,prefix={{branch}}-
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          platforms: linux/amd64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: |
+            org.opencontainers.image.title=Xray + cloudflared for Cloudflare Tunnel
+            org.opencontainers.image.description=Optimized Docker image combining Xray-core and cloudflared for Cloudflare Tunnel deployment with VLESS/XHTTP protocol support
+            org.opencontainers.image.version=${{ steps.versions.outputs.xray_version }}
+            org.opencontainers.image.source=${{ github.repositoryUrl }}
+            xray.version=${{ steps.versions.outputs.xray_version }}
+            cloudflared.version=${{ steps.versions.outputs.cloudflared_version }}
+            version.source=upstream-ver.ini
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          build-args: |
+            XRAY_VERSION=${{ steps.versions.outputs.xray_version }}
+            CLOUDFLARED_VERSION=${{ steps.versions.outputs.cloudflared_version }}
+
+      - name: Image digest
+        run: echo "Image pushed with digest ${{ steps.build.outputs.digest }}"

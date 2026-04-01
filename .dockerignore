@@ -1,0 +1,11 @@
+.git
+.gitignore
+.github
+README.md
+.env
+*.md
+!config/xray-template.json
+workflow/
+.vscode/
+.DS_Store
+*.log
