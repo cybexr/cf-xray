@@ -8,23 +8,21 @@ ARG CLOUDFLARED_VERSION=2024.4.0
 FROM alpine:latest AS builder
 
 # Install build dependencies
-RUN apk add --no-cache curl tar unzip
+RUN apk add --no-cache wget tar unzip
 
 # Set version arguments
 ARG XRAY_VERSION
 ARG CLOUDFLARED_VERSION
 
 # Download xray-core with extended timeout for slow connections
-RUN set -x && \
-    curl -fL --retry 5 --retry-delay 10 --connect-timeout 60 --max-time 600 \
-        -o /tmp/xray.zip "https://github.com/XTLS/Xray-core/releases/download/${XRAY_VERSION}/Xray-linux-64.zip" && \
+RUN wget --timeout=0 -q -O /tmp/xray.zip \
+        "https://github.com/XTLS/Xray-core/releases/download/${XRAY_VERSION}/Xray-linux-64.zip" && \
     unzip /tmp/xray.zip -d /tmp/xray && \
     rm /tmp/xray.zip
 
 # Download cloudflared with extended timeout for slow connections
-RUN set -x && \
-    curl -fL --retry 5 --retry-delay 10 --connect-timeout 60 --max-time 300 \
-        -o /tmp/cloudflared "https://github.com/cloudflare/cloudflared/releases/download/${CLOUDFLARED_VERSION}/cloudflared-linux-amd64" && \
+RUN wget --timeout=0 -q -O /tmp/cloudflared \
+        "https://github.com/cloudflare/cloudflared/releases/download/${CLOUDFLARED_VERSION}/cloudflared-linux-amd64" && \
     chmod +x /tmp/cloudflared
 
 # Stage 2: Create minimal runtime image
