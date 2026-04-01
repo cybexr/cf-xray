@@ -1,47 +1,58 @@
-# Use official Xray image as base
-FROM ghcr.io/xtls/xray:latest AS xray-base
+# Multi-stage build with separate download stage
+FROM alpine:latest AS downloader
 
-# Build arguments for version tracking
-ARG XRAY_VERSION=v26.3.27
-ARG CLOUDFLARED_VERSION=2024.4.0
+RUN apk add --no-cache curl tar
 
-# Stage 1: Get cloudflared
-FROM alpine:latest AS cloudflared-builder
+# Download Xray-core (retry logic for reliability)
+RUN echo "Downloading Xray-core..." && \
+    for i in 1 2 3 4 5; do \
+        curl -fL --retry 3 --retry-delay 5 --connect-timeout 30 --max-time 180 \
+            -o /tmp/xray.zip \
+            "https://github.com/XTLS/Xray-core/releases/download/v26.3.27/Xray-linux-64.zip" && \
+        unzip /tmp/xray.zip -d /tmp && \
+        rm /tmp/xray.zip && \
+        echo "Xray download successful" && \
+        break || \
+        (echo "Xray download attempt $i failed, retrying..." && sleep 10); \
+    done
 
-RUN apk add --no-cache curl && \
-    curl -L -o /usr/local/bin/cloudflared \
-        "https://github.com/cloudflare/cloudflared/releases/download/${CLOUDFLARED_VERSION}/cloudflared-linux-amd64" && \
-    chmod +x /usr/local/bin/cloudflared
+# Download cloudflared (retry logic for reliability)
+RUN echo "Downloading cloudflared..." && \
+    for i in 1 2 3 4 5; do \
+        curl -fL --retry 3 --retry-delay 5 --connect-timeout 30 --max-time 180 \
+            -o /tmp/cloudflared \
+            "https://github.com/cloudflare/cloudflared/releases/download/2024.4.0/cloudflared-linux-amd64" && \
+        chmod +x /tmp/cloudflared && \
+        echo "Cloudflared download successful" && \
+        break || \
+        (echo "Cloudflared download attempt $i failed, retrying..." && sleep 10); \
+    done
 
-# Stage 2: Final image
-FROM ghcr.io/xtls/xray:latest
+# Final stage
+FROM alpine:latest
 
-# Copy cloudflared from builder
-COPY --from=cloudflared-builder /usr/local/bin/cloudflared /usr/local/bin/cloudflared
+RUN apk add --no-cache ca-certificates tzdata && \
+    addgroup -g 1000 xray && \
+    adduser -D -u 1000 -G xray xray
+
+# Copy binaries from downloader
+COPY --from=downloader /tmp/xray /usr/local/bin/
+COPY --from=downloader /tmp/cloudflared /usr/local/bin/
 
 # Copy configuration files
 COPY config/ /etc/xray/
 COPY entrypoint.sh /entrypoint.sh
 
 # Set permissions
-RUN chmod +x /entrypoint.sh /usr/local/bin/cloudflared
+RUN chmod +x /entrypoint.sh /usr/local/bin/xray /usr/local/bin/cloudflared && \
+    chown -R xray:xray /etc/xray
 
-# Set version labels
-LABEL maintainer="cf-xray" \
-      xray.version="${XRAY_VERSION}" \
-      cloudflared.version="${CLOUDFLARED_VERSION}" \
-      description="Xray-core + cloudflared for Cloudflare Tunnel with VLESS/XHTTP" \
-      version.source="upstream-ver.ini"
-
-# Create working directory
 WORKDIR /home/xray
+USER xray
 
-# Expose ports
 EXPOSE 10000
 
-# Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
     CMD pgrep xray || exit 1
 
-# Entry point
 ENTRYPOINT ["/entrypoint.sh"]
