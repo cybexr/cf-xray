@@ -7,7 +7,11 @@
 IMAGE_NAME := cf-xray
 REGISTRY := ghcr.io
 REPO := yourusername/cf-xray
-VERSION := v26.3.27
+
+# Read versions from upstream-ver.ini (robust parsing with -F'=' separator)
+XRAY_VERSION := $(shell awk -F'=' '/\[xray-core\]/{f=1} f && $$1=="version"{gsub(/^[ \t]+|[ \t]+$$/,"",$$2); print $$2; exit}' upstream-ver.ini)
+CLOUDFLARED_VERSION := $(shell awk -F'=' '/\[cloudflared\]/{f=1} f && $$1=="version"{gsub(/^[ \t]+|[ \t]+$$/,"",$$2); print $$2; exit}' upstream-ver.ini)
+VERSION := v$(XRAY_VERSION)
 
 help: ## Show this help message
 	@echo 'Usage: make [target]'
@@ -16,7 +20,10 @@ help: ## Show this help message
 	@awk 'BEGIN {FS = ":.*?## "} /^[a-zA-Z_-]+:.*?## / {printf "  %-15s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
 
 build: ## Build Docker image for linux/amd64
-	docker build -t $(IMAGE_NAME):local .
+	docker build \
+		--build-arg XRAY_VERSION=$(XRAY_VERSION) \
+		--build-arg CLOUDFLARED_VERSION=$(CLOUDFLARED_VERSION) \
+		-t $(IMAGE_NAME):local .
 
 test: build ## Test Docker image
 	@echo "Testing configuration template..."

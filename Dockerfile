@@ -1,14 +1,18 @@
 # Multi-stage build with separate download stage
 FROM alpine:latest AS downloader
 
+# Build arguments for versions (MUST be provided via --build-arg, read from upstream-ver.ini)
+ARG XRAY_VERSION
+ARG CLOUDFLARED_VERSION
+
 RUN apk add --no-cache curl tar
 
 # Download Xray-core (retry logic for reliability)
-RUN echo "Downloading Xray-core..." && \
+RUN echo "Downloading Xray-core v${XRAY_VERSION}..." && \
     for i in 1 2 3 4 5; do \
         curl -fL --retry 3 --retry-delay 5 --connect-timeout 30 --max-time 180 \
             -o /tmp/xray.zip \
-            "https://github.com/XTLS/Xray-core/releases/download/v26.3.27/Xray-linux-64.zip" && \
+            "https://github.com/XTLS/Xray-core/releases/download/v${XRAY_VERSION}/Xray-linux-64.zip" && \
         unzip /tmp/xray.zip -d /tmp && \
         rm /tmp/xray.zip && \
         echo "Xray download successful" && \
@@ -17,11 +21,11 @@ RUN echo "Downloading Xray-core..." && \
     done
 
 # Download cloudflared (retry logic for reliability)
-RUN echo "Downloading cloudflared..." && \
+RUN echo "Downloading cloudflared ${CLOUDFLARED_VERSION}..." && \
     for i in 1 2 3 4 5; do \
         curl -fL --retry 3 --retry-delay 5 --connect-timeout 30 --max-time 180 \
             -o /tmp/cloudflared \
-            "https://github.com/cloudflare/cloudflared/releases/download/2024.4.0/cloudflared-linux-amd64" && \
+            "https://github.com/cloudflare/cloudflared/releases/download/${CLOUDFLARED_VERSION}/cloudflared-linux-amd64" && \
         chmod +x /tmp/cloudflared && \
         echo "Cloudflared download successful" && \
         break || \

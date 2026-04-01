@@ -37,13 +37,9 @@ jobs:
         id: versions
         run: |
           # Parse upstream-ver.ini to extract version numbers
-          XRAY_VERSION=$(grep -E '^version=' upstream-ver.ini | grep -A1 '\[xray-core\]' | tail -1 | cut -d'=' -f2)
-          CLOUDFLARED_VERSION=$(grep -E '^version=' upstream-ver.ini | grep -A1 '\[cloudflared\]' | tail -1 | cut -d'=' -f2)
-
-          # Add 'v' prefix to xray version if not present
-          if [[ ! "$XRAY_VERSION" =~ ^v ]]; then
-            XRAY_VERSION="v${XRAY_VERSION}"
-          fi
+          # upstream-ver.ini stores versions WITHOUT 'v' prefix
+          XRAY_VERSION=$(awk '/\[xray-core\]/,/^version=/{if(/^version=/) print substr($0,9)}' upstream-ver.ini)
+          CLOUDFLARED_VERSION=$(awk '/\[cloudflared\]/,/^version=/{if(/^version=/) print substr($0,9)}' upstream-ver.ini)
 
           echo "xray_version=${XRAY_VERSION}" >> $GITHUB_OUTPUT
           echo "cloudflared_version=${CLOUDFLARED_VERSION}" >> $GITHUB_OUTPUT
