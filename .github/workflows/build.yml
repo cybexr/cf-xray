@@ -54,12 +54,13 @@ jobs:
 
       - name: Download binaries before Docker build
         run: |
+          set -x
           mkdir -p binaries
           echo "Downloading Xray-core ${{ steps.versions.outputs.xray_version }}..."
-          curl -fL -o binaries/xray.zip "https://github.com/XTLS/Xray-core/releases/download/${{ steps.versions.outputs.xray_version }}/Xray-linux-64.zip"
+          curl -vL -o binaries/xray.zip "https://github.com/XTLS/Xray-core/releases/download/${{ steps.versions.outputs.xray_version }}/Xray-linux-64.zip" || echo "Xray download failed with code $?"
           unzip -d binaries binaries/xray.zip
           echo "Downloading cloudflared ${{ steps.versions.outputs.cloudflared_version }}..."
-          curl -fL -o binaries/cloudflared "https://github.com/cloudflare/cloudflared/releases/download/${{ steps.versions.outputs.cloudflared_version }}/cloudflared-linux-amd64"
+          curl -vL -o binaries/cloudflared "https://github.com/cloudflare/cloudflared/releases/download/${{ steps.versions.outputs.cloudflared_version }}/cloudflared-linux-amd64" || echo "Cloudflared download failed with code $?"
           chmod +x binaries/cloudflared
           ls -la binaries/
 
