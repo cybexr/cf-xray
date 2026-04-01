@@ -5,6 +5,7 @@ name: Build and Push Docker Image
 # - Changes to upstream-ver.ini (version updates)
 # - Changes to this workflow, Dockerfile, entrypoint.sh, or config
 # - Manual workflow_dispatch
+# Note: Uses wget for reliable downloads in Alpine Linux
 on:
   push:
     tags:
