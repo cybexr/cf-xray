@@ -56,12 +56,23 @@ jobs:
         run: |
           set -x
           mkdir -p binaries
-          echo "Downloading Xray-core ${{ steps.versions.outputs.xray_version }}..."
-          curl -vL -o binaries/xray.zip "https://github.com/XTLS/Xray-core/releases/download/${{ steps.versions.outputs.xray_version }}/Xray-linux-64.zip" || echo "Xray download failed with code $?"
+
+          # Get Xray download URL from GitHub API
+          echo "Getting Xray-core download URL for ${{ steps.versions.outputs.xray_version }}..."
+          XRAY_URL=$(curl -s "https://api.github.com/repos/XTLS/Xray-core/releases/tags/${{ steps.versions.outputs.xray_version }}" | \
+            grep "browser_download_url.*Xray-linux-64.zip" | head -1 | cut -d '"' -f 4)
+          echo "Xray URL: $XRAY_URL"
+          curl -vL -o binaries/xray.zip "$XRAY_URL"
           unzip -d binaries binaries/xray.zip
-          echo "Downloading cloudflared ${{ steps.versions.outputs.cloudflared_version }}..."
-          curl -vL -o binaries/cloudflared "https://github.com/cloudflare/cloudflared/releases/download/${{ steps.versions.outputs.cloudflared_version }}/cloudflared-linux-amd64" || echo "Cloudflared download failed with code $?"
+
+          # Get cloudflared download URL from GitHub API
+          echo "Getting cloudflared download URL for ${{ steps.versions.outputs.cloudflared_version }}..."
+          CLOUDFLARED_URL=$(curl -s "https://api.github.com/repos/cloudflare/cloudflared/releases/tags/${{ steps.versions.outputs.cloudflared_version }}" | \
+            grep "browser_download_url.*cloudflared-linux-amd64\"" | head -1 | cut -d '"' -f 4)
+          echo "Cloudflared URL: $CLOUDFLARED_URL"
+          curl -vL -o binaries/cloudflared "$CLOUDFLARED_URL"
           chmod +x binaries/cloudflared
+
           ls -la binaries/
 
       - name: Log in to GitHub Container Registry
