@@ -48,8 +48,15 @@ An optimized Docker image combining [Xray-core](https://github.com/XTLS/Xray-cor
 | `TUNNEL_TOKEN` | Cloudflare Tunnel token from Cloudflare Zero Trust dashboard | `eyJh...` |
 | `VLESS_UUID` | UUID for VLESS client authentication | `12345678-1234-1234-1234-123456789abc` |
 | `DOMAIN` | Your domain configured in Cloudflare Tunnel | `tunnel.example.com` |
+
+### TLS Certificate Variables
+
+| Variable | Description | Default |
+|----------|-------------|---------|
 | `TLS_CERT_FILE` | Path to TLS certificate file (fullchain) | `/etc/xray/certs/fullchain.pem` |
 | `TLS_KEY_FILE` | Path to TLS private key file | `/etc/xray/certs/privkey.pem` |
+
+> **Note**: Certificate files must be mounted as volumes. See [TLS Certificate Configuration](#tls-certificate-configuration) below.
 
 ### Optional Variables
 
@@ -398,6 +405,10 @@ curl http://localhost:8080
 - **Invalid UUID**: Generate a new UUID using `uuidgen`
 - **Port conflicts**: Change the `PORT` environment variable
 - **Permission denied**: Ensure the container runs as non-root user
+- **Failed to find any PEM data in certificate input**: Certificate files are not properly mounted
+  - Verify you're mounting valid certificate files (not empty files)
+  - Check the volume mounts in docker-compose.yml include the certificate files
+  - Ensure certificate files contain valid PEM data (BEGIN/END CERTIFICATE headers)
 
 ## Security Considerations
 

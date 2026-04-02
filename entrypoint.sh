@@ -45,6 +45,43 @@ validate_env() {
     log_info "All required environment variables are set"
 }
 
+# Function to validate PEM content
+validate_pem_content() {
+    local file="$1"
+    local type="$2"  # "cert" or "key"
+
+    # Check for PEM headers
+    if [ "$type" = "cert" ]; then
+        if ! grep -q "BEGIN CERTIFICATE" "$file" 2>/dev/null; then
+            log_error "Certificate file does not contain valid PEM data (missing BEGIN CERTIFICATE): $file"
+            log_error "Please mount a valid certificate file"
+            return 1
+        fi
+        if ! grep -q "END CERTIFICATE" "$file" 2>/dev/null; then
+            log_error "Certificate file does not contain valid PEM data (missing END CERTIFICATE): $file"
+            return 1
+        fi
+    else
+        if ! grep -q "BEGIN.*PRIVATE KEY" "$file" 2>/dev/null && \
+           ! grep -q "BEGIN RSA PRIVATE KEY" "$file" 2>/dev/null && \
+           ! grep -q "BEGIN EC PRIVATE KEY" "$file" 2>/dev/null && \
+           ! grep -q "BEGIN PRIVATE KEY" "$file" 2>/dev/null; then
+            log_error "Key file does not contain valid PEM data (missing BEGIN PRIVATE KEY): $file"
+            log_error "Please mount a valid private key file"
+            return 1
+        fi
+        if ! grep -q "END.*PRIVATE KEY" "$file" 2>/dev/null && \
+           ! grep -q "END RSA PRIVATE KEY" "$file" 2>/dev/null && \
+           ! grep -q "END EC PRIVATE KEY" "$file" 2>/dev/null && \
+           ! grep -q "END PRIVATE KEY" "$file" 2>/dev/null; then
+            log_error "Key file does not contain valid PEM data (missing END PRIVATE KEY): $file"
+            return 1
+        fi
+    fi
+
+    return 0
+}
+
 # Function to validate certificate files
 setup_certs() {
     # Set default paths if not specified
@@ -55,11 +92,14 @@ setup_certs() {
     if [ ! -f "$TLS_CERT_FILE" ]; then
         log_error "TLS certificate file not found: $TLS_CERT_FILE"
         log_error "Please mount your certificate file or set TLS_CERT_FILE"
+        log_error "Example docker-compose.yml volume:"
+        log_error "  - ./path/to/fullchain.pem:/etc/xray/certs/fullchain.pem:ro"
         exit 1
     fi
 
     if [ ! -s "$TLS_CERT_FILE" ]; then
         log_error "TLS certificate file is empty: $TLS_CERT_FILE"
+        log_error "Please mount a valid certificate file"
         exit 1
     fi
 
@@ -68,19 +108,32 @@ setup_certs() {
         exit 1
     fi
 
+    # Validate PEM content
+    if ! validate_pem_content "$TLS_CERT_FILE" "cert"; then
+        exit 1
+    fi
+
     if [ ! -f "$TLS_KEY_FILE" ]; then
         log_error "TLS private key file not found: $TLS_KEY_FILE"
         log_error "Please mount your private key file or set TLS_KEY_FILE"
+        log_error "Example docker-compose.yml volume:"
+        log_error "  - ./path/to/privkey.pem:/etc/xray/certs/privkey.pem:ro"
         exit 1
     fi
 
     if [ ! -s "$TLS_KEY_FILE" ]; then
         log_error "TLS private key file is empty: $TLS_KEY_FILE"
+        log_error "Please mount a valid private key file"
         exit 1
     fi
 
     if [ ! -r "$TLS_KEY_FILE" ]; then
         log_error "TLS private key file is not readable by current user: $TLS_KEY_FILE"
+        exit 1
+    fi
+
+    # Validate PEM content
+    if ! validate_pem_content "$TLS_KEY_FILE" "key"; then
         exit 1
     fi
 
