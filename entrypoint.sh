@@ -157,7 +157,7 @@ generate_config() {
     if [ "${TLS_ENABLED:-true}" != "false" ] && [ "${TLS_ENABLED:-true}" != "none" ]; then
         # TLS enabled
         log_info "TLS enabled for Xray inbound"
-        cat > "$config_path" << 'CONFIG'
+        cat > "$config_path" << EOF
 {
   "log": {
     "loglevel": "${LOG_LEVEL:-warning}",
@@ -229,11 +229,11 @@ generate_config() {
     ]
   }
 }
-CONFIG
+EOF
     else
         # TLS disabled (Cloudflare Tunnel mode)
         log_info "TLS disabled for Xray inbound (Cloudflare Tunnel mode)"
-        cat > "$config_path" << 'CONFIG'
+        cat > "$config_path" << EOF
 {
   "log": {
     "loglevel": "${LOG_LEVEL:-warning}",
@@ -296,7 +296,7 @@ CONFIG
     ]
   }
 }
-CONFIG
+EOF
     fi
 
     log_info "Configuration generated at $config_path"
