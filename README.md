@@ -66,6 +66,35 @@ An optimized Docker image combining [Xray-core](https://github.com/XTLS/Xray-cor
 | `LOG_LEVEL` | Xray log level (debug, info, warning, error, none) | `warning` |
 | `ENABLE_HEALTH_CHECK` | Enable health check server on port 8080 | `true` |
 | `VLESS_XHTTP_PATH` | XHTTP path for VLESS transport | `/your-secret-path` |
+| `TLS_ENABLED` | Enable TLS for Xray inbound (see Cloudflare Tunnel mode below) | `true` |
+
+## Cloudflare Tunnel Mode (Recommended)
+
+For Cloudflare Tunnel deployments, **set `TLS_ENABLED=false`**. This is the recommended configuration because:
+
+```
+Client --TLS--> Cloudflare Edge --QUIC/TLS--> cloudflared --HTTP--> Xray
+         (Public Cert)              (Origin CA)          (No TLS needed!)
+```
+
+**Why disable Xray TLS?**
+1. Cloudflare Tunnel already provides end-to-end encryption
+2. Xray TLS requires public certificates (not Origin CA certificates)
+3. Double TLS adds unnecessary overhead
+
+### Cloudflare Tunnel Configuration
+
+```yaml
+services:
+  cf-xray:
+    image: ghcr.io/cybexr/cf-xray:latest
+    environment:
+      TUNNEL_TOKEN: "your_token"
+      VLESS_UUID: "your_uuid"
+      DOMAIN: "your.domain.com"
+      TLS_ENABLED: false  # Disable Xray TLS for Cloudflare Tunnel
+    # No certificate volumes needed!
+```
 
 ## Quick Start
 

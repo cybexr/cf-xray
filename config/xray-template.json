@@ -17,16 +17,8 @@
       },
       "streamSettings": {
         "network": "xhttp",
-        "security": "tls",
-        "tlsSettings": {
-          "certificates": [
-            {
-              "certificateFile": "${TLS_CERT_FILE}",
-              "keyFile": "${TLS_KEY_FILE}"
-            }
-          ],
-          "serverName": "${DOMAIN}"
-        },
+        "security": "___TLS_SECURITY___",
+        ___TLS_SETTINGS_PLACEHOLDER___
         "xhttpSettings": {
           "path": "${VLESS_XHTTP_PATH}",
           "mode": "auto",

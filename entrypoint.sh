@@ -84,6 +84,12 @@ validate_pem_content() {
 
 # Function to validate certificate files
 setup_certs() {
+    # Check if TLS is disabled
+    if [ "${TLS_ENABLED:-true}" = "false" ] || [ "${TLS_ENABLED:-true}" = "none" ]; then
+        log_info "TLS is disabled, skipping certificate validation"
+        return 0
+    fi
+
     # Set default paths if not specified
     TLS_CERT_FILE="${TLS_CERT_FILE:-/etc/xray/certs/fullchain.pem}"
     TLS_KEY_FILE="${TLS_KEY_FILE:-/etc/xray/certs/privkey.pem}"
@@ -140,27 +146,158 @@ setup_certs() {
     log_info "Certificate files validated: $TLS_CERT_FILE, $TLS_KEY_FILE"
 }
 
+
 # Function to generate Xray configuration
 generate_config() {
-    local template_path="/etc/xray/xray-template.json"
     local config_path="/etc/xray/config.json"
-
-    if [ ! -f "$template_path" ]; then
-        log_error "Template file not found: $template_path"
-        exit 1
-    fi
 
     log_info "Generating Xray configuration from template"
 
-    # Read template and substitute environment variables
-    sed -e "s/\${VLESS_UUID}/${VLESS_UUID}/g" \
-        -e "s/\${DOMAIN}/${DOMAIN}/g" \
-        -e "s/\${PORT:-10000}/${PORT:-10000}/g" \
-        -e "s/\${LOG_LEVEL:-warning}/${LOG_LEVEL:-warning}/g" \
-        -e "s#\${VLESS_XHTTP_PATH:-/your-secret-path}#${VLESS_XHTTP_PATH:-/your-secret-path}#g" \
-        -e "s#\${TLS_CERT_FILE}#${TLS_CERT_FILE}#g" \
-        -e "s#\${TLS_KEY_FILE}#${TLS_KEY_FILE}#g" \
-        "$template_path" > "$config_path"
+    # Handle TLS settings based on TLS_ENABLED
+    if [ "${TLS_ENABLED:-true}" != "false" ] && [ "${TLS_ENABLED:-true}" != "none" ]; then
+        # TLS enabled
+        log_info "TLS enabled for Xray inbound"
+        cat > "$config_path" << 'CONFIG'
+{
+  "log": {
+    "loglevel": "${LOG_LEVEL:-warning}",
+    "access": "none"
+  },
+  "inbounds": [
+    {
+      "port": ${PORT:-10000},
+      "protocol": "vless",
+      "settings": {
+        "clients": [
+          {
+            "id": "${VLESS_UUID}"
+          }
+        ],
+        "decryption": "none"
+      },
+      "streamSettings": {
+        "network": "xhttp",
+        "security": "tls",
+        "tlsSettings": {
+          "certificates": [
+            {
+              "certificateFile": "${TLS_CERT_FILE}",
+              "keyFile": "${TLS_KEY_FILE}"
+            }
+          ],
+          "serverName": "${DOMAIN}"
+        },
+        "xhttpSettings": {
+          "path": "${VLESS_XHTTP_PATH}",
+          "mode": "auto",
+          "noSNIHeader": false
+        }
+      },
+      "sniffing": {
+        "enabled": true,
+        "destOverride": [
+          "http",
+          "tls"
+        ]
+      }
+    }
+  ],
+  "outbounds": [
+    {
+      "protocol": "freedom",
+      "tag": "direct",
+      "settings": {
+        "domainStrategy": "AsIs"
+      }
+    },
+    {
+      "protocol": "blackhole",
+      "tag": "block",
+      "settings": {}
+    }
+  ],
+  "routing": {
+    "domainStrategy": "AsIs",
+    "rules": [
+      {
+        "type": "field",
+        "ip": [
+          "geoip:private"
+        ],
+        "outboundTag": "block"
+      }
+    ]
+  }
+}
+CONFIG
+    else
+        # TLS disabled (Cloudflare Tunnel mode)
+        log_info "TLS disabled for Xray inbound (Cloudflare Tunnel mode)"
+        cat > "$config_path" << 'CONFIG'
+{
+  "log": {
+    "loglevel": "${LOG_LEVEL:-warning}",
+    "access": "none"
+  },
+  "inbounds": [
+    {
+      "port": ${PORT:-10000},
+      "protocol": "vless",
+      "settings": {
+        "clients": [
+          {
+            "id": "${VLESS_UUID}"
+          }
+        ],
+        "decryption": "none"
+      },
+      "streamSettings": {
+        "network": "xhttp",
+        "security": "none",
+        "xhttpSettings": {
+          "path": "${VLESS_XHTTP_PATH}",
+          "mode": "auto",
+          "noSNIHeader": false
+        }
+      },
+      "sniffing": {
+        "enabled": true,
+        "destOverride": [
+          "http",
+          "tls"
+        ]
+      }
+    }
+  ],
+  "outbounds": [
+    {
+      "protocol": "freedom",
+      "tag": "direct",
+      "settings": {
+        "domainStrategy": "AsIs"
+      }
+    },
+    {
+      "protocol": "blackhole",
+      "tag": "block",
+      "settings": {}
+    }
+  ],
+  "routing": {
+    "domainStrategy": "AsIs",
+    "rules": [
+      {
+        "type": "field",
+        "ip": [
+          "geoip:private"
+        ],
+        "outboundTag": "block"
+      }
+    ]
+  }
+}
+CONFIG
+    fi
 
     log_info "Configuration generated at $config_path"
 }
