@@ -110,7 +110,7 @@ docker run -d \
   -v /path/to/your/privkey.pem:/etc/xray/certs/privkey.pem:ro \
   -p 10000:10000 \
   -p 8080:8080 \
-  ghcr.io/yourusername/cf-xray:latest
+  ghcr.io/cybexr/cf-xray:latest
 ```
 
 ### Generate VLESS UUID
@@ -144,7 +144,7 @@ docker run -d \
   -v /path/to/your/privkey.pem:/etc/xray/certs/privkey.pem:ro \
   -p 10000:10000 \
   -p 8080:8080 \
-  ghcr.io/yourusername/cf-xray:latest
+  ghcr.io/cybexr/cf-xray:latest
 ```
 
 ### Option 2: Use Custom Paths
@@ -163,7 +163,7 @@ docker run -d \
   -v /path/to/your/privkey.pem:/custom/path/to/key.pem:ro \
   -p 10000:10000 \
   -p 8080:8080 \
-  ghcr.io/yourusername/cf-xray:latest
+  ghcr.io/cybexr/cf-xray:latest
 ```
 
 ### Certificate Requirements
@@ -187,7 +187,7 @@ docker run -d \
   -v /etc/letsencrypt/live/your.domain.com/privkey.pem:/etc/xray/certs/privkey.pem:ro \
   -p 10000:10000 \
   -p 8080:8080 \
-  ghcr.io/yourusername/cf-xray:latest
+  ghcr.io/cybexr/cf-xray:latest
 ```
 
 ## Cloudflare Run Deployment
@@ -242,7 +242,7 @@ cloudflared tunnel route dns <your-tunnel-id> your.domain.com
 
 ```bash
 # Pull the image
-docker pull ghcr.io/yourusername/cf-xray:latest
+docker pull ghcr.io/cybexr/cf-xray:latest
 
 # Run with environment variables and TLS certificates
 docker run -d \
@@ -253,7 +253,7 @@ docker run -d \
   -e DOMAIN="your.domain.com" \
   -v /path/to/fullchain.pem:/etc/xray/certs/fullchain.pem:ro \
   -v /path/to/privkey.pem:/etc/xray/certs/privkey.pem:ro \
-  ghcr.io/yourusername/cf-xray:latest
+  ghcr.io/cybexr/cf-xray:latest
 ```
 
 ### Using Docker Compose
@@ -263,7 +263,7 @@ version: '3.8'
 
 services:
   cf-xray:
-    image: ghcr.io/yourusername/cf-xray:latest
+    image: ghcr.io/cybexr/cf-xray:latest
     container_name: cf-xray
     restart: unless-stopped
     environment:
@@ -357,7 +357,7 @@ To update to new versions:
 curl -s https://ghcr.io/v2/repositories/yourusername/cf-xray/tags/list | jq
 
 # Pull specific version
-docker pull ghcr.io/yourusername/cf-xray:v26.3.27
+docker pull ghcr.io/cybexr/cf-xray:v26.3.27
 ```
 
 ## Building from Source

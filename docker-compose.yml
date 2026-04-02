@@ -2,7 +2,7 @@ version: '3.8'
 
 services:
   cf-xray:
-    image: ghcr.io/yourusername/cf-xray:latest
+    image: ghcr.io/cybexr/cf-xray:latest
     container_name: cf-xray
     restart: unless-stopped
     environment:
