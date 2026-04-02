@@ -42,53 +42,49 @@ validate_env() {
         exit 1
     fi
 
-    # Validate TLS configuration (either file paths or content)
-    if [ -z "$TLS_CERT_CONTENT" ] && [ -z "$TLS_CERT_FILE" ]; then
-        log_error "Missing TLS certificate configuration"
-        log_error "Please set either TLS_CERT_CONTENT or TLS_CERT_FILE"
-        exit 1
-    fi
-
-    if [ -z "$TLS_KEY_CONTENT" ] && [ -z "$TLS_KEY_FILE" ]; then
-        log_error "Missing TLS private key configuration"
-        log_error "Please set either TLS_KEY_CONTENT or TLS_KEY_FILE"
-        exit 1
-    fi
-
     log_info "All required environment variables are set"
 }
 
-# Function to validate certificate files or write content to files
+# Function to validate certificate files
 setup_certs() {
-    # Use cert content if provided, otherwise use file paths
-    if [ -n "$TLS_CERT_CONTENT" ]; then
-        CERT_FILE="/etc/xray/certs/fullchain.pem"
-        echo "$TLS_CERT_CONTENT" > "$CERT_FILE"
-        chmod 644 "$CERT_FILE"
-        log_info "Certificate written from TLS_CERT_CONTENT"
-        export TLS_CERT_FILE="$CERT_FILE"
-    fi
+    # Set default paths if not specified
+    TLS_CERT_FILE="${TLS_CERT_FILE:-/etc/xray/certs/fullchain.pem}"
+    TLS_KEY_FILE="${TLS_KEY_FILE:-/etc/xray/certs/privkey.pem}"
 
-    if [ -n "$TLS_KEY_CONTENT" ]; then
-        KEY_FILE="/etc/xray/certs/privkey.pem"
-        echo "$TLS_KEY_CONTENT" > "$KEY_FILE"
-        chmod 600 "$KEY_FILE"
-        log_info "Private key written from TLS_KEY_CONTENT"
-        export TLS_KEY_FILE="$KEY_FILE"
-    fi
-
-    # Validate certificate files exist
+    # Validate certificate files exist and are non-empty
     if [ ! -f "$TLS_CERT_FILE" ]; then
         log_error "TLS certificate file not found: $TLS_CERT_FILE"
+        log_error "Please mount your certificate file or set TLS_CERT_FILE"
+        exit 1
+    fi
+
+    if [ ! -s "$TLS_CERT_FILE" ]; then
+        log_error "TLS certificate file is empty: $TLS_CERT_FILE"
+        exit 1
+    fi
+
+    if [ ! -r "$TLS_CERT_FILE" ]; then
+        log_error "TLS certificate file is not readable by current user: $TLS_CERT_FILE"
         exit 1
     fi
 
     if [ ! -f "$TLS_KEY_FILE" ]; then
         log_error "TLS private key file not found: $TLS_KEY_FILE"
+        log_error "Please mount your private key file or set TLS_KEY_FILE"
         exit 1
     fi
 
-    log_info "Certificate files validated"
+    if [ ! -s "$TLS_KEY_FILE" ]; then
+        log_error "TLS private key file is empty: $TLS_KEY_FILE"
+        exit 1
+    fi
+
+    if [ ! -r "$TLS_KEY_FILE" ]; then
+        log_error "TLS private key file is not readable by current user: $TLS_KEY_FILE"
+        exit 1
+    fi
+
+    log_info "Certificate files validated: $TLS_CERT_FILE, $TLS_KEY_FILE"
 }
 
 # Function to generate Xray configuration
@@ -192,7 +188,11 @@ main() {
         if [ "$2" = "version" ]; then
             exec "$@"
         fi
-        
+
+        # Set default TLS paths for xray commands too
+        TLS_CERT_FILE="${TLS_CERT_FILE:-/etc/xray/certs/fullchain.pem}"
+        TLS_KEY_FILE="${TLS_KEY_FILE:-/etc/xray/certs/privkey.pem}"
+
         # For other xray commands (like -test), try to generate config if possible
         # but don't exit if env vars are missing unless they are actually needed
         generate_config 2>/dev/null || log_warn "Could not generate config (missing env vars?)"

@@ -51,10 +51,8 @@ COPY entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh /usr/local/bin/xray /usr/local/bin/cloudflared && \
     chmod 644 /usr/local/bin/geoip.dat /usr/local/bin/geosite.dat && \
     mkdir -p /etc/xray/certs && \
+    chmod 755 /etc/xray/certs && \
     chown -R xray:xray /etc/xray
-
-# Allow xray user to write certs directory (for TLS_CERT_CONTENT/KEY_CONTENT)
-RUN chmod 755 /etc/xray/certs
 
 WORKDIR /home/xray
 USER xray

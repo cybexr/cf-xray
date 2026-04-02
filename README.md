@@ -41,6 +41,16 @@ An optimized Docker image combining [Xray-core](https://github.com/XTLS/Xray-cor
 | `VLESS_UUID` | UUID for VLESS client authentication | `12345678-1234-1234-1234-123456789abc` |
 | `DOMAIN` | Your domain configured in Cloudflare Tunnel | `tunnel.example.com` |
 
+### Required Variables
+
+| Variable | Description | Example |
+|----------|-------------|---------|
+| `TUNNEL_TOKEN` | Cloudflare Tunnel token from Cloudflare Zero Trust dashboard | `eyJh...` |
+| `VLESS_UUID` | UUID for VLESS client authentication | `12345678-1234-1234-1234-123456789abc` |
+| `DOMAIN` | Your domain configured in Cloudflare Tunnel | `tunnel.example.com` |
+| `TLS_CERT_FILE` | Path to TLS certificate file (fullchain) | `/etc/xray/certs/fullchain.pem` |
+| `TLS_KEY_FILE` | Path to TLS private key file | `/etc/xray/certs/privkey.pem` |
+
 ### Optional Variables
 
 | Variable | Description | Default |
@@ -60,6 +70,8 @@ docker run -d \
   -e TUNNEL_TOKEN="your_cloudflare_tunnel_token" \
   -e VLESS_UUID="your_vless_uuid" \
   -e DOMAIN="your.domain.com" \
+  -v /path/to/your/fullchain.pem:/etc/xray/certs/fullchain.pem:ro \
+  -v /path/to/your/privkey.pem:/etc/xray/certs/privkey.pem:ro \
   -p 10000:10000 \
   -p 8080:8080 \
   ghcr.io/yourusername/cf-xray:latest
@@ -76,6 +88,70 @@ uuidgen
 
 # Online generator
 # Visit: https://www.uuidgenerator.net/
+```
+
+## TLS Certificate Configuration
+
+The container requires TLS certificates for secure connections. You have two options:
+
+### Option 1: Use Default Paths (Recommended)
+
+Mount your certificates to the default paths:
+
+```bash
+docker run -d \
+  --name cf-xray \
+  -e TUNNEL_TOKEN="your_cloudflare_tunnel_token" \
+  -e VLESS_UUID="your_vless_uuid" \
+  -e DOMAIN="your.domain.com" \
+  -v /path/to/your/fullchain.pem:/etc/xray/certs/fullchain.pem:ro \
+  -v /path/to/your/privkey.pem:/etc/xray/certs/privkey.pem:ro \
+  -p 10000:10000 \
+  -p 8080:8080 \
+  ghcr.io/yourusername/cf-xray:latest
+```
+
+### Option 2: Use Custom Paths
+
+Set custom paths via environment variables:
+
+```bash
+docker run -d \
+  --name cf-xray \
+  -e TUNNEL_TOKEN="your_cloudflare_tunnel_token" \
+  -e VLESS_UUID="your_vless_uuid" \
+  -e DOMAIN="your.domain.com" \
+  -e TLS_CERT_FILE="/custom/path/to/cert.pem" \
+  -e TLS_KEY_FILE="/custom/path/to/key.pem" \
+  -v /path/to/your/fullchain.pem:/custom/path/to/cert.pem:ro \
+  -v /path/to/your/privkey.pem:/custom/path/to/key.pem:ro \
+  -p 10000:10000 \
+  -p 8080:8080 \
+  ghcr.io/yourusername/cf-xray:latest
+```
+
+### Certificate Requirements
+
+- **Certificate file**: Must be a fullchain certificate (including intermediate certificates)
+- **Key file**: Must be the private key corresponding to the certificate
+- **Files must be non-empty**: The container will exit with an error if certificate files are empty
+- **Read-only mounting**: Recommended for security (`:ro` flag)
+
+### Using Let's Encrypt Certificates
+
+If you're using Certbot for Let's Encrypt certificates:
+
+```bash
+docker run -d \
+  --name cf-xray \
+  -e TUNNEL_TOKEN="your_cloudflare_tunnel_token" \
+  -e VLESS_UUID="your_vless_uuid" \
+  -e DOMAIN="your.domain.com" \
+  -v /etc/letsencrypt/live/your.domain.com/fullchain.pem:/etc/xray/certs/fullchain.pem:ro \
+  -v /etc/letsencrypt/live/your.domain.com/privkey.pem:/etc/xray/certs/privkey.pem:ro \
+  -p 10000:10000 \
+  -p 8080:8080 \
+  ghcr.io/yourusername/cf-xray:latest
 ```
 
 ## Cloudflare Run Deployment
@@ -132,13 +208,15 @@ cloudflared tunnel route dns <your-tunnel-id> your.domain.com
 # Pull the image
 docker pull ghcr.io/yourusername/cf-xray:latest
 
-# Run with environment variables
+# Run with environment variables and TLS certificates
 docker run -d \
   --name cf-xray \
   --restart unless-stopped \
   -e TUNNEL_TOKEN="your_tunnel_token" \
   -e VLESS_UUID="your_vless_uuid" \
   -e DOMAIN="your.domain.com" \
+  -v /path/to/fullchain.pem:/etc/xray/certs/fullchain.pem:ro \
+  -v /path/to/privkey.pem:/etc/xray/certs/privkey.pem:ro \
   ghcr.io/yourusername/cf-xray:latest
 ```
 
@@ -159,6 +237,9 @@ services:
       PORT: "10000"
       LOG_LEVEL: "warning"
       ENABLE_HEALTH_CHECK: "true"
+    volumes:
+      - ./fullchain.pem:/etc/xray/certs/fullchain.pem:ro
+      - ./privkey.pem:/etc/xray/certs/privkey.pem:ro
     ports:
       - "10000:10000"
       - "8080:8080"
