@@ -39,8 +39,8 @@ RUN apk add --no-cache ca-certificates tzdata && \
     addgroup -g 1000 xray && \
     adduser -D -u 1000 -G xray xray
 
-# Copy binaries from downloader
-COPY --from=downloader /tmp/xray /usr/local/bin/
+# Copy binaries and DAT files from downloader
+COPY --from=downloader /tmp/xray /tmp/geoip.dat /tmp/geosite.dat /usr/local/bin/
 COPY --from=downloader /tmp/cloudflared /usr/local/bin/
 
 # Copy configuration files
@@ -49,10 +49,18 @@ COPY entrypoint.sh /entrypoint.sh
 
 # Set permissions
 RUN chmod +x /entrypoint.sh /usr/local/bin/xray /usr/local/bin/cloudflared && \
+    chmod 644 /usr/local/bin/geoip.dat /usr/local/bin/geosite.dat && \
+    mkdir -p /etc/xray/certs && \
     chown -R xray:xray /etc/xray
+
+# Allow xray user to write certs directory (for TLS_CERT_CONTENT/KEY_CONTENT)
+RUN chmod 755 /etc/xray/certs
 
 WORKDIR /home/xray
 USER xray
+
+# Volume for TLS certificates
+VOLUME ["/etc/xray/certs"]
 
 EXPOSE 10000
 

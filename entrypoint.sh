@@ -22,7 +22,7 @@ log_warn() {
 
 # Function to validate required environment variables
 validate_env() {
-    local required_vars="TUNNEL_TOKEN VLESS_UUID DOMAIN"
+    local required_vars="TUNNEL_TOKEN VLESS_UUID DOMAIN VLESS_XHTTP_PATH"
     local missing_vars=""
 
     for var in $required_vars; do
@@ -38,10 +38,57 @@ validate_env() {
         echo "  - TUNNEL_TOKEN: Your Cloudflare Tunnel token"
         echo "  - VLESS_UUID: Your VLESS UUID for client authentication"
         echo "  - DOMAIN: Your domain for Cloudflare Tunnel"
+        echo "  - VLESS_XHTTP_PATH: Your secret path for XHTTP transport"
+        exit 1
+    fi
+
+    # Validate TLS configuration (either file paths or content)
+    if [ -z "$TLS_CERT_CONTENT" ] && [ -z "$TLS_CERT_FILE" ]; then
+        log_error "Missing TLS certificate configuration"
+        log_error "Please set either TLS_CERT_CONTENT or TLS_CERT_FILE"
+        exit 1
+    fi
+
+    if [ -z "$TLS_KEY_CONTENT" ] && [ -z "$TLS_KEY_FILE" ]; then
+        log_error "Missing TLS private key configuration"
+        log_error "Please set either TLS_KEY_CONTENT or TLS_KEY_FILE"
         exit 1
     fi
 
     log_info "All required environment variables are set"
+}
+
+# Function to validate certificate files or write content to files
+setup_certs() {
+    # Use cert content if provided, otherwise use file paths
+    if [ -n "$TLS_CERT_CONTENT" ]; then
+        CERT_FILE="/etc/xray/certs/fullchain.pem"
+        echo "$TLS_CERT_CONTENT" > "$CERT_FILE"
+        chmod 644 "$CERT_FILE"
+        log_info "Certificate written from TLS_CERT_CONTENT"
+        export TLS_CERT_FILE="$CERT_FILE"
+    fi
+
+    if [ -n "$TLS_KEY_CONTENT" ]; then
+        KEY_FILE="/etc/xray/certs/privkey.pem"
+        echo "$TLS_KEY_CONTENT" > "$KEY_FILE"
+        chmod 600 "$KEY_FILE"
+        log_info "Private key written from TLS_KEY_CONTENT"
+        export TLS_KEY_FILE="$KEY_FILE"
+    fi
+
+    # Validate certificate files exist
+    if [ ! -f "$TLS_CERT_FILE" ]; then
+        log_error "TLS certificate file not found: $TLS_CERT_FILE"
+        exit 1
+    fi
+
+    if [ ! -f "$TLS_KEY_FILE" ]; then
+        log_error "TLS private key file not found: $TLS_KEY_FILE"
+        exit 1
+    fi
+
+    log_info "Certificate files validated"
 }
 
 # Function to generate Xray configuration
@@ -62,6 +109,8 @@ generate_config() {
         -e "s/\${PORT:-10000}/${PORT:-10000}/g" \
         -e "s/\${LOG_LEVEL:-warning}/${LOG_LEVEL:-warning}/g" \
         -e "s#\${VLESS_XHTTP_PATH:-/your-secret-path}#${VLESS_XHTTP_PATH:-/your-secret-path}#g" \
+        -e "s#\${TLS_CERT_FILE}#${TLS_CERT_FILE}#g" \
+        -e "s#\${TLS_KEY_FILE}#${TLS_KEY_FILE}#g" \
         "$template_path" > "$config_path"
 
     log_info "Configuration generated at $config_path"
@@ -130,11 +179,34 @@ start_health_check() {
 # Main execution
 main() {
     log_info "Starting Xray + cloudflared container"
+    
+    # Check if we're running a custom command
+    if [ $# -gt 0 ] && [ "$1" != "xray" ] && [ "$1" != "/entrypoint.sh" ]; then
+        log_info "Executing custom command: $@"
+        exec "$@"
+    fi
+
+    # For xray commands or default startup, we need config
+    if [ "$1" = "xray" ]; then
+        # If it's just 'xray version', don't require env vars or generate config
+        if [ "$2" = "version" ]; then
+            exec "$@"
+        fi
+        
+        # For other xray commands (like -test), try to generate config if possible
+        # but don't exit if env vars are missing unless they are actually needed
+        generate_config 2>/dev/null || log_warn "Could not generate config (missing env vars?)"
+        exec "$@"
+    fi
+
     log_info "Xray-core version: $(xray version | head -n 1 || echo 'unknown')"
     log_info "cloudflared version: $(cloudflared --version 2>&1 || echo 'unknown')"
 
     # Validate environment variables
     validate_env
+
+    # Setup certificate files
+    setup_certs
 
     # Generate Xray configuration
     generate_config
@@ -152,5 +224,5 @@ main() {
     start_xray
 }
 
-# Run main function
-main
+# Run main function with all arguments
+main "$@"

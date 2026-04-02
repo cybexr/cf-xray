@@ -16,6 +16,7 @@ on:
       - 'Dockerfile'
       - 'entrypoint.sh'
       - 'config/**'
+      - 'scripts/test-config.sh'
   workflow_dispatch:
 
 env:
@@ -32,6 +33,9 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+
+      - name: Validate Xray configuration template
+        run: bash scripts/test-config.sh
 
       - name: Extract versions from upstream-ver.ini
         id: versions

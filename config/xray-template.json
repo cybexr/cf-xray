@@ -10,15 +10,23 @@
       "settings": {
         "clients": [
           {
-            "id": "${VLESS_UUID}",
-            "flow": "xtls-rprx-vision"
+            "id": "${VLESS_UUID}"
           }
         ],
         "decryption": "none"
       },
       "streamSettings": {
         "network": "xhttp",
-        "security": "none",
+        "security": "tls",
+        "tlsSettings": {
+          "certificates": [
+            {
+              "certificateFile": "${TLS_CERT_FILE}",
+              "keyFile": "${TLS_KEY_FILE}"
+            }
+          ],
+          "serverName": "${DOMAIN}"
+        },
         "xhttpSettings": {
           "path": "${VLESS_XHTTP_PATH}",
           "mode": "auto",
@@ -55,13 +63,6 @@
         "type": "field",
         "ip": [
           "geoip:private"
-        ],
-        "outboundTag": "block"
-      },
-      {
-        "type": "field",
-        "domain": [
-          "geosite:category-ads-all"
         ],
         "outboundTag": "block"
       }
