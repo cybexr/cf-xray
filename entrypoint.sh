@@ -161,7 +161,7 @@ generate_config() {
 {
   "log": {
     "loglevel": "${LOG_LEVEL:-warning}",
-    "access": "none"
+    "access": "${XRAY_ACCESS_LOG:-/dev/stdout}"
   },
   "inbounds": [
     {
@@ -237,7 +237,7 @@ EOF
 {
   "log": {
     "loglevel": "${LOG_LEVEL:-warning}",
-    "access": "none"
+    "access": "${XRAY_ACCESS_LOG:-/dev/stdout}"
   },
   "inbounds": [
     {
